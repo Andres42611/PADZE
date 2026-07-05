@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: "If you use PADZE, cite this software and the original ADZE paper."
+title: "PADZE"
+type: software
+version: "0.1.0"
+date-released: "2026-07-05"
+abstract: "PADZE (Pythonic Allelic Diversity Analyzer): a NumPy implementation and extension of ADZE allelic-rarefaction statistics, with VCF and STRUCTURE input, a command-line interface, and an importable Python API."
+license: MIT
+repository-code: "https://github.com/Andres42611/PADZE"
+keywords:
+  - PADZE
+  - population genetics
+  - allelic richness
+  - rarefaction
+  - VCF
+  - ADZE
+authors:
+  - given-names: Andres
+    family-names: del Castillo
+  - given-names: Yitzchak
+    family-names: Shmalo
+    affiliation: "Hebrew University of Jerusalem"
+    email: yitzchak.shmalo@mail.huji.ac.il
+references:
+  - type: article
+    title: "ADZE: a rarefaction approach for counting alleles private to combinations of populations"
+    authors:
+      - family-names: Szpiech
+        given-names: Zachary A.
+      - family-names: Jakobsson
+        given-names: Mattias
+      - family-names: Rosenberg
+        given-names: Noah A.
+    journal: Bioinformatics
+    year: 2008
+    volume: 24
+    start: 2498
+    end: 2504
+    doi: "10.1093/bioinformatics/btn478"

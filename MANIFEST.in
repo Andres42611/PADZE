@@ -1,0 +1,8 @@
+include README.md
+include LICENSE
+include CHANGELOG.md
+include CITATION.cff
+include PADZE_Manual.pdf
+recursive-include examples *.vcf *.popmap *.md
+recursive-include tests/fixtures *.popmap *.vcf
+recursive-include docs *.md *.pdf

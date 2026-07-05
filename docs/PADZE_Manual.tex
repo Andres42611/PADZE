@@ -1,0 +1,879 @@
+\documentclass[11pt]{article}
+
+\usepackage[letterpaper,margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{fancyhdr}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue,
+  pdftitle={PADZE User Manual},
+  pdfauthor={Andres del Castillo and Yitzchak Shmalo}
+}
+
+% ---- Listing styles -------------------------------------------------------
+\lstset{
+  breaklines=true,
+  breakatwhitespace=false,
+  columns=fullflexible,
+  frame=single,
+  framerule=0.2pt,
+  xleftmargin=0.6em,
+  xrightmargin=0.6em,
+  aboveskip=0.9em,
+  belowskip=0.9em,
+  showstringspaces=false,
+  keepspaces=true
+}
+\lstdefinestyle{cmd}{basicstyle=\ttfamily\small,language=bash}
+\lstdefinestyle{py}{basicstyle=\ttfamily\small,language=Python}
+\lstdefinestyle{out}{basicstyle=\ttfamily\footnotesize}
+
+% ---- "Coming from ADZE" callout box ---------------------------------------
+\definecolor{calloutbg}{RGB}{240,244,248}
+\definecolor{calloutrule}{RGB}{71,85,105}
+\newsavebox{\calloutbox}
+\newenvironment{callout}[1]{%
+  \par\medskip\noindent
+  \setlength{\fboxsep}{10pt}%
+  \setlength{\fboxrule}{0.8pt}%
+  \begin{lrbox}{\calloutbox}%
+  \begin{minipage}{\dimexpr\textwidth-2\fboxsep-2\fboxrule\relax}%
+    \small
+    \textbf{\large #1}\par\smallskip
+}{%
+  \end{minipage}%
+  \end{lrbox}%
+  \noindent\fcolorbox{calloutrule}{calloutbg}{\usebox{\calloutbox}}%
+  \par\medskip
+}
+
+\pagestyle{fancy}
+\setlength{\headheight}{14pt}
+\fancyhf{}
+\lhead{PADZE User Manual}
+\rhead{Version 0.1.0}
+\cfoot{\thepage}
+
+\newcommand{\padze}{PADZE}
+\setcounter{tocdepth}{2}
+\setcounter{secnumdepth}{2}
+
+% Let TeX absorb the last few points of long inline flag names in justified
+% prose instead of leaving them slightly past the right margin.
+\setlength{\emergencystretch}{3em}
+
+\begin{document}
+\pagenumbering{roman}
+
+% ===========================================================================
+\begin{titlepage}
+\centering
+\vspace*{1.25in}
+{\Huge \textbf{\padze{}}\par}
+\vspace{0.25in}
+{\Large Pythonic Allelic Diversity Analyzer\par}
+\vspace{0.25in}
+{\large User Manual \textbullet{} Version 0.1.0\par}
+\vspace{0.75in}
+{\large Andres del Castillo and Yitzchak Shmalo\par}
+\vspace{0.35in}
+{\large \today\par}
+\vspace{0.15in}
+{\large Distributed under the MIT license\par}
+\vfill
+\begin{minipage}{0.86\textwidth}
+\padze{} (Pythonic Allelic Diversity Analyzer) measures how many distinct
+alleles each of several populations carries, and corrects the counts by
+rarefaction so that populations sampled at different sizes can be compared
+fairly. For each locus and standardized sample depth it reports allelic
+richness, private allelic richness, and richness private to a named
+combination of populations, and then summarizes each statistic across loci.
+\padze{} reads VCF or STRUCTURE genotypes, writes tidy CSV or ready-to-use
+summary files, and runs from either a \texttt{padze} command line or an
+importable Python API.
+\end{minipage}
+\vfill
+\begin{minipage}{0.86\textwidth}
+\small
+\padze{} implements the rarefaction estimators of Szpiech, Jakobsson \&
+Rosenberg (2008); cite that paper when you report results. The full citation is
+in the References.
+\end{minipage}
+\end{titlepage}
+
+\setcounter{page}{2}
+\tableofcontents
+\newpage
+\pagenumbering{arabic}
+
+% ===========================================================================
+\section{Introduction}
+
+The number of distinct alleles a population carries---its \emph{allelic
+diversity}---is a basic measure of genetic variation. It is also treacherous to
+compare across populations, because a larger sample turns up more alleles simply
+by examining more gene copies. \padze{} removes that sampling bias by
+\emph{rarefaction}: for every population it estimates how many alleles you would
+expect to see if you had drawn the same standardized number of gene copies from
+each. The corrected counts are directly comparable even when the raw sample
+sizes are not.
+
+For each locus and each standardized sample depth \(g\), \padze{} reports three
+quantities:
+
+\begin{itemize}
+  \item \textbf{Allelic richness} (\texttt{alpha})---expected distinct alleles
+        in a population.
+  \item \textbf{Private allelic richness} (\texttt{pi})---expected alleles
+        unique to one population.
+  \item \textbf{Combination-private richness} (\texttt{pihat})---expected
+        alleles unique to a named \emph{group} of populations.
+\end{itemize}
+
+It computes these at every locus and then summarizes each statistic
+\emph{across loci}, reporting the mean, variance, and standard error together
+with the skewness and excess kurtosis of the across-loci distribution. The
+result is a compact numerical profile of how diversity is distributed across the
+genome, in a CSV you can analyze directly or feed to downstream models.
+
+\padze{} is packaged as the Python project \texttt{padze}, with console command
+\texttt{padze} and module entry point \texttt{python -m padze}. It is
+distributed under the MIT license.
+
+\begin{callout}{Coming from ADZE 1.0?}
+\padze{} runs your existing analyses and adds new capability:
+\begin{itemize}
+  \setlength{\itemsep}{2pt}
+  \item \textbf{Input.} Point \padze{} at a VCF plus a one-line-per-sample
+        population map; no STRUCTURE conversion. Your existing STRUCTURE files
+        still work.
+  \item \textbf{Install and run.} Install with \texttt{pip} on any platform,
+        then use the \texttt{padze} CLI or the Python API, in place of
+        per-platform binaries.
+  \item \textbf{Reproduce R/P/C.} Run your data with \texttt{-{}-adze-prefix} to
+        regenerate the R, P, and C files (and the FULL per-locus files)
+        directly.
+  \item \textbf{New statistics.} The same mean, variance, and standard error,
+        plus across-loci skewness and excess kurtosis, and classical statistics
+        over sliding genomic windows.
+\end{itemize}
+\padze{} matches ADZE 1.0 wherever they overlap. Full mapping and parity
+details are in \texttt{docs/adze-1.0-reference.md}.
+\end{callout}
+
+% ===========================================================================
+\section{Core Concepts}
+\label{sec:concepts}
+
+This section explains everything needed to read \padze{}'s output. If you
+already work with rarefied allelic diversity, skim to
+Section~\ref{sec:depth} for the depth rule and Section~\ref{sec:defs} for the
+formulas.
+
+\subsection{Rarefaction and Gene Copies}
+
+Diversity statistics are counted in \emph{gene copies}, not individuals. A
+diploid individual contributes two gene copies per locus, a haploid one, and so
+on. Two diploid samples therefore provide up to four gene copies at a locus.
+
+Because a bigger sample finds more alleles just by looking harder, raw counts are
+not comparable across populations of different size. \emph{Rarefaction} fixes
+this by trimming every population to a common standardized depth \(g\) (a number
+of gene copies) and asking: \emph{if you had drawn only \(g\) gene copies from
+this population, how many distinct alleles would you expect to see?} Answering
+that question for a range of depths \(g = 2, 3, \dots\) is the core of what
+\padze{} does. Combinatorial formulas give the exact expectation, so no
+resampling is needed.
+
+\subsection{The Three Richness Statistics}
+
+At a single locus and depth \(g\), \padze{} evaluates:
+
+\begin{itemize}
+  \item \texttt{alpha\_j}---\textbf{allelic richness.} Expected number of
+        distinct alleles observed when \(g\) gene copies are drawn from
+        population \(j\).
+  \item \texttt{pi\_j}---\textbf{private allelic richness.} Expected number of
+        alleles \emph{private} to population \(j\)---present in \(j\) and absent
+        from every other population---at depth \(g\).
+  \item \texttt{pihat}---\textbf{combination-private richness.} Expected number
+        of alleles private to a \emph{combination} of populations: present in
+        every member of the named group and absent everywhere outside it.
+        \texttt{pihat} generalizes \texttt{pi} (a single-population combination
+        is exactly \texttt{pi}), which is why it carries the ``hat.'' For
+        example \texttt{pihat\_12} counts alleles found in populations 1 and 2
+        but in no other.
+\end{itemize}
+
+\emph{Private} always means present here, absent everywhere else. The numeric
+suffix indexes populations in the population order (by default, the order in
+which they first appear), so with \(P\) populations in total \texttt{alpha\_1}
+is the first population, \texttt{alpha\_2} the second, and \texttt{pihat\_13} is
+the combination of the first and third. In the shipped example (populations
+\(A, B, C\)) that makes \texttt{alpha\_1} population \(A\) and \texttt{pihat\_13}
+the \(A\)--\(C\) combination.
+
+\subsection{Summaries Across Loci}
+
+Each statistic has one value \emph{per locus}. Across the loci in a dataset those
+values form a distribution, and \padze{} summarizes its shape at each depth with
+five moments:
+
+\begin{center}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.20\textwidth}>{\raggedright\arraybackslash}p{0.72\textwidth}@{}}
+\toprule
+\textbf{Moment} & \textbf{Meaning} \\
+\midrule
+\texttt{mean} & Average across loci---the headline diversity estimate. \\
+\texttt{variance} & Sample variance across loci (locus-to-locus spread). \\
+\texttt{se} & Standard error of the mean, \(\sqrt{\text{variance}/n_{\text{loci}}}\). \\
+\texttt{skewness} & Asymmetry of the across-loci distribution. \\
+\texttt{kurtosis} & Excess kurtosis---tailedness relative to a normal distribution. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The \texttt{mean}, \texttt{variance}, and \texttt{se} are the classical
+summaries. The \texttt{skewness} and \texttt{kurtosis} add a description of the
+distribution's asymmetry and tails---useful when diversity is concentrated in a
+few loci rather than spread evenly.
+
+\subsection{Rarefaction Depth}
+\label{sec:depth}
+
+You can only rarefy down to a depth the data actually support. The maximum usable
+depth is set by the \textbf{smallest number of non-missing gene copies}
+available for a population at any single locus. Two diploid samples give four
+gene copies per population, but a single missing genotype leaves three copies at
+that locus---so the depth for that population is capped at three.
+
+Choosing \texttt{-{}-max-depth} is a trade-off: a larger \(g\) sits closer to the
+raw allele count but is supported by fewer loci and populations, while a smaller
+\(g\) is more comparable across small samples. \padze{} reports the maximum depth
+your data support in the \texttt{info} summary (Section~\ref{sec:info}).
+
+\subsection{Precise Definitions}
+\label{sec:defs}
+
+Consider a locus with \(I\) distinct alleles. Let \(N_{ij}\) be the number of
+copies of allele \(i\) in population \(j\), and
+\[
+  N_j = \sum_{i=1}^{I} N_{ij}
+\]
+the total number of gene copies in \(j\). The probability that a draw of \(g\)
+gene copies from \(j\) (without replacement) misses allele \(i\) entirely is
+\[
+  Q_{ijg} = \frac{\dbinom{N_j - N_{ij}}{g}}{\dbinom{N_j}{g}},
+\]
+and \(P_{ijg} = 1 - Q_{ijg}\) is the probability the draw contains allele \(i\).
+Summing over the alleles at the locus,
+\[
+  \hat{\alpha}^{(j)}_g = \sum_{i=1}^{I} P_{ijg},
+\qquad
+  \hat{\pi}^{(j)}_g = \sum_{i=1}^{I} P_{ijg}\!\!\prod_{\substack{j'=1\\ j' \ne j}}^{P}\!\! Q_{ij'g},
+\]
+\[
+  \hat{\pi}^{(S)}_g = \sum_{i=1}^{I}
+  \Bigl(\prod_{j \in S} P_{ijg}\Bigr)
+  \Bigl(\prod_{j \notin S} Q_{ijg}\Bigr).
+\]
+Here \(\hat{\alpha}^{(j)}_g\) counts alleles the draw is expected to contain;
+\(\hat{\pi}^{(j)}_g\) counts alleles present in \(j\) but absent from every other
+population; and \(\hat{\pi}^{(S)}_g\) counts alleles present in every population
+of the set \(S\) and absent from all populations outside it. Across \(L\) loci,
+the summaries of a per-locus value \(x\) are
+\[
+  \bar{x} = \frac{1}{L}\sum_{\ell=1}^{L} x_{\ell},
+\qquad
+  s^2 = \frac{1}{L-1}\sum_{\ell=1}^{L}(x_{\ell}-\bar{x})^2,
+\qquad
+  \mathrm{SE} = \sqrt{\frac{s^2}{L}}.
+\]
+
+% ===========================================================================
+\section{Installation}
+\label{sec:install}
+
+\padze{} requires Python 3.10 or newer and NumPy. The optional \texttt{test}
+extra adds pytest and SciPy for the validation suite.
+
+Install from a checkout of the repository:
+\begin{lstlisting}[style=cmd]
+pip install .
+\end{lstlisting}
+
+Install with the test/validation dependencies:
+\begin{lstlisting}[style=cmd]
+pip install -e ".[test]"
+\end{lstlisting}
+
+Installing creates the \texttt{padze} console command; you can also invoke the
+package as a module:
+\begin{lstlisting}[style=cmd]
+padze --help
+python -m padze --help
+\end{lstlisting}
+
+To run \emph{without installing}, from the \texttt{GitHub/} directory of the
+checkout put the source on the path and call the module:
+\begin{lstlisting}[style=cmd]
+PYTHONPATH=src python -m padze --help
+\end{lstlisting}
+
+Every command in this manual uses the no-install form
+\texttt{PYTHONPATH=src python -m padze \ldots} so it runs directly from a fresh
+checkout. After \texttt{pip install .} you can drop the
+\texttt{PYTHONPATH=src python -m} prefix and just type \texttt{padze}.
+
+% ===========================================================================
+\section{Quick Start}
+\label{sec:quickstart}
+
+\padze{} ships a small example in \texttt{examples/}: \texttt{trio.vcf} and
+\texttt{trio.popmap} describe three populations (\(A, B, C\)), two diploid
+samples each, across seven loci.
+
+\subsection{Inspect the Data with \texttt{info}}
+\label{sec:info}
+
+Start with \texttt{info} to confirm \padze{} reads your data as you expect:
+\begin{lstlisting}[style=cmd]
+PYTHONPATH=src python -m padze info \
+  --vcf examples/trio.vcf \
+  --popmap examples/trio.popmap
+\end{lstlisting}
+
+Output:
+\begin{lstlisting}[style=out]
+source: VCF:examples/trio.vcf
+populations (3): A, B, C
+samples/pop: A=2, B=2, C=2
+loci: kept 7 / read 7
+filters: drop all-missing loci
+missing call fraction (kept): 0.0119
+ADZE feature shape per locus: alpha_j, pi_j (j=1..P) and pihat over population
+combinations; summarized across loci as (mean, variance, se, skewness,
+kurtosis) per rarefaction depth.
+max usable rarefaction depth: 3
+\end{lstlisting}
+
+The depth caps at 3 (not 4) because a missing genotype at \texttt{chr1:600}
+leaves population \(A\) with three gene copies at that locus---see
+Section~\ref{sec:depth}.
+
+\subsection{Compute the Feature Table}
+\label{sec:qs-features}
+
+The default \texttt{features} output is a wide CSV: one row per rarefaction depth
+\(g\), with the five moment columns for every statistic. Use \texttt{-{}-out -}
+to write to standard output.
+\begin{lstlisting}[style=cmd]
+PYTHONPATH=src python -m padze features \
+  --vcf examples/trio.vcf \
+  --popmap examples/trio.popmap \
+  --max-depth 3 \
+  --out -
+\end{lstlisting}
+
+Output (columns and rows truncated; 46 columns total, full schema in
+Section~\ref{sec:outputs}):
+\begin{lstlisting}[style=out]
+g,alpha_1_mean,alpha_1_variance,alpha_1_se,alpha_1_skewness,alpha_1_kurtosis, ... ,pihat_23_kurtosis
+2,1.380952380952381,0.07142857142857144,0.10101525445522108,-0.9839173128183324, ...
+3,1.5714285714285714,0.16071428571428573,0.15152288168283162,-0.983917312818333, ...
+\end{lstlisting}
+
+Read the first row as: population \(A\) (\texttt{alpha\_1}), rarefied to
+\(g = 2\) gene copies and averaged over 7 loci, is expected to carry
+\textbf{1.38 distinct alleles} per locus, with variance 0.071 and standard error
+0.101 across those loci.
+
+\subsection{Compute the Classical Summary}
+\label{sec:qs-classical}
+
+Pass \texttt{-{}-classical} for a compact long-format table of just the three
+classical moments---mean, variance, and standard error---one row per statistic
+and depth:
+\begin{lstlisting}[style=cmd]
+PYTHONPATH=src python -m padze features \
+  --vcf examples/trio.vcf \
+  --popmap examples/trio.popmap \
+  --max-depth 3 \
+  --classical \
+  --out -
+\end{lstlisting}
+
+Output:
+\begin{lstlisting}[style=out]
+statistic,g,n_loci,mean,variance,se
+alpha_1,2,7,1.380952380952381,0.07142857142857144,0.10101525445522108
+alpha_1,3,7,1.5714285714285714,0.16071428571428573,0.15152288168283162
+alpha_2,2,7,1.3095238095238095,0.08730158730158728,0.11167656571008164
+alpha_2,3,7,1.4642857142857144,0.19642857142857148,0.1675148485651225
+alpha_3,2,7,1.476190476190476,0.05026455026455028,0.0847387162859628
+alpha_3,3,7,1.7142857142857142,0.11309523809523812,0.1271080744289442
+pi_1,2,7,0.047619047619047616,0.004298941798941799,0.02478173808888253
+pi_1,3,7,0,0,0
+pi_2,2,7,0.1547619047619048,0.031084656084656086,0.06663831596724867
+pi_2,3,7,0.044642857142857144,0.008742559523809524,0.035340303830469995
+pi_3,2,7,0.16666666666666669,0.13888888888888892,0.14085904245475278
+pi_3,3,7,0.14285714285714285,0.14285714285714285,0.14285714285714285
+pihat_12,2,7,0.32142857142857145,0.026455026455026454,0.061475926130276456
+pihat_12,3,7,0.24107142857142855,0.06305803571428571,0.0949120161851308
+pihat_13,2,7,0.4761904761904762,0.13128306878306875,0.13694788830743965
+pihat_13,3,7,0.39285714285714285,0.18452380952380953,0.16235930591649828
+pihat_23,2,7,0.2976190476190476,0.0853174603174603,0.11040022018447265
+pihat_23,3,7,0.24107142857142858,0.12555803571428573,0.13392857142857142
+\end{lstlisting}
+
+\subsection{Python API}
+\label{sec:api}
+
+The same pipeline is available as an importable library:
+\begin{lstlisting}[style=py]
+import padze
+
+loci = padze.read_vcf("examples/trio.vcf", "examples/trio.popmap")
+table = padze.compute_features(loci)
+matrix, columns = table.to_frame()
+print(matrix.shape)        # (2, 46)
+print(columns[:4])         # ['g', 'alpha_1_mean', 'alpha_1_variance', 'alpha_1_se']
+\end{lstlisting}
+
+% ===========================================================================
+\section{Input Data}
+\label{sec:input}
+
+\padze{} accepts two input formats: \textbf{VCF plus a population map}
+(recommended for new work) and \textbf{STRUCTURE} (for parity with, and
+migration from, existing pipelines).
+
+\subsection{VCF and Population Map}
+\label{sec:vcf}
+
+VCF is the primary input. \padze{} reads genotypes from the \texttt{GT} FORMAT
+subfield:
+\begin{itemize}
+  \item Genotypes are taken from the \texttt{GT} subfield (the first
+        \texttt{FORMAT} field, as usual).
+  \item Ploidy is detected per genotype from the \texttt{GT} separators; samples
+        are diploid by default, and a \texttt{.} allele is treated as a missing
+        gene copy.
+  \item Multiallelic sites are supported: alleles are aligned by VCF allele index
+        across populations, so no biallelic decomposition is required.
+  \item Plain \texttt{.vcf} and gzip-compressed \texttt{.vcf.gz} files are both
+        accepted.
+\end{itemize}
+
+The \textbf{population map} (popmap) assigns each VCF sample to a population. It
+is a plain-text file with one \texttt{sample<TAB>population} pair per line (any
+whitespace is accepted; a tab is recommended). Lines beginning with \texttt{\#}
+are comments. The shipped \texttt{examples/trio.popmap}:
+\begin{lstlisting}[style=out]
+# sample population
+sA1	A
+sA2	A
+sB1	B
+sB2	B
+sC1	C
+sC2	C
+\end{lstlisting}
+
+Population labels are ordered as first encountered. Use
+\texttt{-{}-population-order} when the numbered outputs (\texttt{alpha\_1},
+\texttt{pihat\_13}, \ldots) must follow a specific order, for example
+\texttt{-{}-population-order A B C}.
+
+\subsection{STRUCTURE Input}
+\label{sec:structure}
+
+STRUCTURE-format input lets you run the exact genotype files used by earlier
+pipelines through \padze{}. A STRUCTURE file has an optional header row of locus
+names, one or more leading metadata columns (individual label, population,
+\ldots), and then the allele tokens. \padze{} reads both the
+two-rows-per-individual layout (one row per gene copy) and the packed
+one-row-per-individual layout. The relevant flags are documented in
+Section~\ref{sec:flags}; a typical diploid, packed file with one header row and
+two metadata columns (label, population) is read with:
+\begin{lstlisting}[style=cmd]
+PYTHONPATH=src python -m padze features \
+  --structure mydata.stru \
+  --structure-header-rows 1 \
+  --structure-meta-columns 2 \
+  --structure-pop-column 2 \
+  --ploidy 2 \
+  --one-row-per-individual \
+  --population-order A B C \
+  --max-depth 3 \
+  --classical --out -
+\end{lstlisting}
+
+A STRUCTURE encoding of the trio example produces byte-for-byte the same
+allelic-richness, private-richness, and \texttt{pihat} values as the matched VCF
+(Section~\ref{sec:validation}). For the crosswalk between these flags and the
+original ADZE parameter-file keys, see \texttt{docs/adze-1.0-reference.md}.
+
+% ===========================================================================
+\section{Running \padze{}}
+\label{sec:running}
+
+\subsection{Subcommands}
+\label{sec:subcommands}
+
+\padze{} has two subcommands, both taking the same input and filtering flags:
+\begin{itemize}
+  \item \texttt{info} loads the input, applies any filters, and prints a
+        transparent summary---source, population labels, samples per population,
+        loci read vs.\ kept, filters applied, missing-call fraction, and the
+        maximum usable rarefaction depth.
+  \item \texttt{features} runs the full rarefaction pipeline and writes the
+        feature table (default), or the classical, ADZE-compatible, or
+        rolling-window outputs on request.
+\end{itemize}
+\begin{lstlisting}[style=cmd]
+PYTHONPATH=src python -m padze info     --vcf examples/trio.vcf --popmap examples/trio.popmap
+PYTHONPATH=src python -m padze features --vcf examples/trio.vcf --popmap examples/trio.popmap
+\end{lstlisting}
+
+\subsection{Flag Reference}
+\label{sec:flags}
+
+\subsubsection*{Input and formats}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.38\textwidth}>{\raggedright\arraybackslash}p{0.58\textwidth}@{}}
+\toprule
+\textbf{Flag} & \textbf{Meaning} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Flag} & \textbf{Meaning} \\
+\midrule
+\endhead
+\texttt{-{}-vcf VCF} & Input \texttt{.vcf} / \texttt{.vcf.gz} file. \\
+\texttt{-{}-popmap POPMAP} & Population map: one \texttt{sample population} pair per line; \texttt{\#} comments allowed. \\
+\texttt{-{}-population-order P1 P2 \ldots} & Population order for the numbered outputs (\texttt{alpha\_1}, \texttt{pihat\_12}, \ldots). Default: order of first appearance. \\
+\texttt{-{}-structure STRUCTURE} & Input STRUCTURE-format file. \\
+\texttt{-{}-structure-header-rows N} & Leading non-data rows to skip (default 0). \\
+\texttt{-{}-structure-meta-columns N} & Leading metadata columns before the genotypes (default: enough to include the label and population columns). \\
+\texttt{-{}-structure-pop-column N} & 1-based column that assigns each individual to a population (default 2). \\
+\texttt{-{}-structure-label-column N} & 1-based individual-label column (default 1). \\
+\texttt{-{}-structure-missing TOKEN} & STRUCTURE missing-data token (default \texttt{-9}). \\
+\texttt{-{}-ploidy P} & STRUCTURE ploidy (default 2). \\
+\texttt{-{}-one-row-per-individual} & STRUCTURE rows pack \texttt{ploidy} alleles per locus (one row per individual). \\
+\texttt{-{}-default-ploidy P} & VCF fallback ploidy for a bare missing \texttt{GT} \texttt{.} before a sample's ploidy is observed (default 2). \\
+\bottomrule
+\end{longtable}
+
+\subsubsection*{Filtering and missingness}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.38\textwidth}>{\raggedright\arraybackslash}p{0.58\textwidth}@{}}
+\toprule
+\textbf{Flag} & \textbf{Meaning} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Flag} & \textbf{Meaning} \\
+\midrule
+\endhead
+\texttt{-{}-require-pass} & VCF: keep only records whose \texttt{FILTER} is \texttt{PASS} or \texttt{.}. \\
+\texttt{-{}-max-missing-fraction F} & VCF: drop sites whose overall missing-call fraction exceeds \texttt{F}. \\
+\texttt{-{}-max-missing-per-population F} & Drop a locus if \emph{any} population exceeds missing fraction \texttt{F}. \\
+\texttt{-{}-min-populations-genotyped N} & Drop sites genotyped in fewer than \texttt{N} populations (default: all populations for the feature table, 1 for classical / ADZE-compatible modes). \\
+\texttt{-{}-biallelic-only} & VCF: drop multiallelic sites. \\
+\bottomrule
+\end{longtable}
+
+\subsubsection*{Statistics and depth}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.38\textwidth}>{\raggedright\arraybackslash}p{0.58\textwidth}@{}}
+\toprule
+\textbf{Flag} & \textbf{Meaning} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Flag} & \textbf{Meaning} \\
+\midrule
+\endhead
+\texttt{-{}-max-depth G} & Largest rarefaction depth \(g\) (default: the maximum the data support). \\
+\texttt{-{}-pihat-sizes K [K \ldots]} & Combination sizes used for \texttt{pihat} (default: 2 when \(P \ge 2\), 1 when \(P = 1\)). \\
+\texttt{-{}-moments M \ldots} & Which across-loci moments to write in the feature table; each \texttt{M} is one of \texttt{mean}, \texttt{variance}, \texttt{se}, \texttt{skewness}, \texttt{kurtosis} (default: all five). \\
+\texttt{-{}-depth-policy \{common,ragged\}} & Feature-table depth handling: \texttt{common} requires every locus/population to support each depth; \texttt{ragged} summarizes whatever per-locus values are available up to the largest sample size. \\
+\texttt{-{}-population-moments} & Use biased population skew/kurtosis (\texttt{g1}, \texttt{g2}) instead of the sample estimators (\texttt{G1}, \texttt{G2}). \\
+\bottomrule
+\end{longtable}
+
+\subsubsection*{Output selection}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.38\textwidth}>{\raggedright\arraybackslash}p{0.58\textwidth}@{}}
+\toprule
+\textbf{Flag} & \textbf{Meaning} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Flag} & \textbf{Meaning} \\
+\midrule
+\endhead
+\texttt{-{}-out PATH} & Output CSV path (\texttt{-} writes to standard output). \\
+\texttt{-{}-classical} & Emit the classical \texttt{(mean, variance, se)} table over each statistic's full depth range. \\
+\texttt{-{}-adze-prefix PREFIX} & Write ADZE-compatible R/P/C files using this prefix (\texttt{PREFIX\_r}, \texttt{PREFIX\_p}, \texttt{PREFIX\_c\_K}). \\
+\texttt{-{}-adze-full} & With \texttt{-{}-adze-prefix}, also write the FULL per-locus files. \\
+\texttt{-{}-per-locus-out PATH} & Also write per-locus values in long format. \\
+\bottomrule
+\end{longtable}
+
+\subsubsection*{Rolling windows}
+
+Rolling windows compute the classical statistics over sliding stretches of the
+genome, so you can trace how diversity changes along a chromosome.
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.38\textwidth}>{\raggedright\arraybackslash}p{0.58\textwidth}@{}}
+\toprule
+\textbf{Flag} & \textbf{Meaning} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Flag} & \textbf{Meaning} \\
+\midrule
+\endhead
+\texttt{-{}-rolling-window W} & Compute the classical statistics over sliding windows of size \texttt{W}. \\
+\texttt{-{}-step S} & Rolling-window step (default: \texttt{W}, i.e.\ non-overlapping windows). \\
+\texttt{-{}-window-unit \{loci,bp\}} & Rolling-window unit: number of loci (default) or base pairs. \\
+\bottomrule
+\end{longtable}
+
+Example---non-overlapping-ish windows of four loci, stepping by three:
+\begin{lstlisting}[style=cmd]
+PYTHONPATH=src python -m padze features \
+  --vcf examples/trio.vcf \
+  --popmap examples/trio.popmap \
+  --max-depth 2 \
+  --classical \
+  --rolling-window 4 --step 3 --window-unit loci \
+  --out -
+\end{lstlisting}
+
+Output (first rows):
+\begin{lstlisting}[style=out]
+window,unit,start,end,n_loci,statistic,g,n_used,mean,variance,se
+0,loci,0,4,4,alpha_1,2,4,1.5,0,0
+0,loci,0,4,4,alpha_2,2,4,1.25,0.08333333333333333,0.14433756729740643
+0,loci,0,4,4,alpha_3,2,4,1.4583333333333335,0.09953703703703705,0.15774745405000762
+0,loci,0,4,4,pi_1,2,4,0.0625,0.006365740740740739,0.03989279615651408
+0,loci,0,4,4,pi_2,2,4,0.22916666666666669,0.03877314814814815,0.098454492213596
+\end{lstlisting}
+
+\subsection{Performance}
+\label{sec:performance}
+
+The rarefaction core is NumPy-vectorized and processes hundreds of loci and
+thousands of individuals in seconds. The one cost to watch is combination-private
+richness: the number of population combinations of size \(k\) grows as
+\(\binom{P}{k}\) in the number of populations \(P\), so a large combination size
+over many populations (set with \texttt{-{}-pihat-sizes}) can make the
+\texttt{pihat} calculation dominate the run.
+
+% ===========================================================================
+\section{Output Files}
+\label{sec:outputs}
+
+\padze{} writes one of several formats depending on the flags you pass. Choose by
+goal:
+
+\begin{center}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.40\textwidth}>{\raggedright\arraybackslash}p{0.28\textwidth}>{\raggedright\arraybackslash}p{0.26\textwidth}@{}}
+\toprule
+\textbf{Goal} & \textbf{Flags} & \textbf{Format} \\
+\midrule
+Analyze in Python / feed downstream models & \emph{(default)} & Wide feature CSV (\S\ref{sec:featurecsv}) \\
+Standard summary numbers (mean, variance, SE) & \texttt{-{}-classical} & Long CSV (\S\ref{sec:classicalcsv}) \\
+Diversity along a chromosome & \texttt{-{}-classical -{}-rolling-window} & Long CSV, one block per window (\S\ref{sec:flags}) \\
+Drop-in R / P / C files & \texttt{-{}-adze-prefix} & R/P/C text files (\S\ref{sec:rpc}) \\
+Per-locus values & \texttt{-{}-adze-full} or \texttt{-{}-per-locus-out} & FULL / long files (\S\ref{sec:full}) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Feature CSV (default)}
+\label{sec:featurecsv}
+
+A wide CSV with \textbf{one row per rarefaction depth \(g\)}. For every statistic
+there are \textbf{five moment columns}, named \texttt{<statistic>\_<moment>},
+where \texttt{<moment>} is one of \texttt{mean}, \texttt{variance}, \texttt{se},
+\texttt{skewness}, \texttt{kurtosis} (excess kurtosis). The statistics are:
+\begin{itemize}
+  \item \texttt{alpha\_j}---allelic richness for population \(j\).
+  \item \texttt{pi\_j}---private allelic richness for population \(j\).
+  \item \texttt{pihat\_XY}---combination-private richness for the population
+        combination \(X,Y\) (for example \texttt{pihat\_12}, \texttt{pihat\_13},
+        \texttt{pihat\_23}); combination size is set by \texttt{-{}-pihat-sizes}.
+\end{itemize}
+
+For the three-population example that is \texttt{alpha\_1..alpha\_3},
+\texttt{pi\_1..pi\_3}, and \texttt{pihat\_12}, \texttt{pihat\_13},
+\texttt{pihat\_23}---nine statistics \(\times\) five moments = 45 columns, plus
+the leading \texttt{g} column, giving 46. \texttt{-{}-moments} restricts which of
+the five suffixes are written.
+
+\subsection{Classical CSV (\texttt{-{}-classical})}
+\label{sec:classicalcsv}
+
+A long-format table of the three classical moments, one row per
+\texttt{(statistic, depth)}:
+\begin{lstlisting}[style=out]
+statistic,g,n_loci,mean,variance,se
+\end{lstlisting}
+
+\subsection{R / P / C Files (\texttt{-{}-adze-prefix})}
+\label{sec:rpc}
+
+\texttt{-{}-adze-prefix PREFIX} writes three summary files, one grouping per
+block:
+\begin{itemize}
+  \item \texttt{PREFIX\_r}---allelic richness (R file).
+  \item \texttt{PREFIX\_p}---private allelic richness (P file).
+  \item \texttt{PREFIX\_c\_K}---combination-private richness for combination
+        size \(K\) (C file).
+\end{itemize}
+Each data line is \texttt{grouping \ldots{} g num\_loci mean variance std\_err}.
+
+\subsection{FULL Per-Locus Files (\texttt{-{}-adze-full})}
+\label{sec:full}
+
+Adding \texttt{-{}-adze-full} to \texttt{-{}-adze-prefix} also writes per-locus
+files:
+\begin{itemize}
+  \item \texttt{PREFIX\_r\_fulldata}
+  \item \texttt{PREFIX\_p\_fulldata}
+  \item \texttt{PREFIX\_c\_K\_fulldata}
+\end{itemize}
+Each row carries the grouping, depth \(g\), locus count, \textbf{one column per
+locus} (the per-locus statistic value), then the \texttt{AVG}, \texttt{VAR}, and
+\texttt{STD\_ERR} summary columns. \texttt{-{}-per-locus-out PATH} writes the
+same per-locus values in a single long-format CSV.
+
+\subsection{Deleted-Loci Report}
+\label{sec:deleted}
+
+When \texttt{-{}-max-missing-per-population} drops loci in R/P/C mode, \padze{}
+writes a companion report \texttt{PREFIX\_p\_deletedloci} listing the loci
+excluded because at least one grouping exceeded the missing tolerance.
+
+% ===========================================================================
+\section{Worked Example}
+\label{sec:example}
+
+This end-to-end run turns the shipped VCF into a complete set of R/P/C output
+files. From the \texttt{GitHub/} directory:
+\begin{lstlisting}[style=cmd]
+PYTHONPATH=src python -m padze features \
+  --vcf examples/trio.vcf \
+  --popmap examples/trio.popmap \
+  --population-order A B C \
+  --adze-prefix out \
+  --adze-full
+\end{lstlisting}
+
+\padze{} reports the files it wrote:
+\begin{lstlisting}[style=out]
+wrote ADZE-compatible files: out_r, out_r_fulldata, out_p, out_p_fulldata, out_c_2, out_c_2_fulldata
+\end{lstlisting}
+\begin{itemize}
+  \item \texttt{out\_r}, \texttt{out\_p}, \texttt{out\_c\_2}---the R, P, and C
+        summary files.
+  \item \texttt{out\_r\_fulldata}, \texttt{out\_p\_fulldata},
+        \texttt{out\_c\_2\_fulldata}---the FULL per-locus files.
+\end{itemize}
+
+The R summary file \texttt{out\_r} (allelic richness per population and depth):
+\begin{lstlisting}[style=out]
+A 2 7 1.380952380952381 0.07142857142857144 0.10101525445522108
+A 3 7 1.5714285714285714 0.1607142857142857 0.1515228816828316
+
+B 2 7 1.3095238095238098 0.08730158730158731 0.11167656571008165
+B 3 7 1.4642857142857142 0.19642857142857142 0.16751484856512247
+B 4 7 1.5714285714285714 0.2857142857142857 0.20203050891044214
+
+C 2 7 1.4761904761904763 0.050264550264550255 0.08473871628596277
+C 3 7 1.7142857142857142 0.11309523809523814 0.1271080744289442
+C 4 7 1.8571428571428572 0.1428571428571429 0.14285714285714288
+\end{lstlisting}
+
+Each block reports one population; columns are grouping, depth \(g\), number of
+loci, mean, variance, and standard error. Each population is carried to the
+largest depth its own sample size supports---\(B\) and \(C\) keep all four gene
+copies at every locus and reach \(g = 4\), while \(A\) drops to \(g = 3\) because
+of the missing call at \texttt{chr1:600} (Section~\ref{sec:depth}).
+
+The FULL R file \texttt{out\_r\_fulldata} adds one column per locus. Its header
+and the population-\(A\) block:
+\begin{lstlisting}[style=out]
+POP_GROUPING G NUM_LOCI chr1:100 chr1:200 chr1:300 chr1:400 chr1:500 chr1:600 chr1:700 AVG VAR STD_ERR
+A 2 7 1.5 1.5 1.5 1.5 1 1.6666666666666667 1 1.380952380952381 0.07142857142857144 0.10101525445522108
+A 3 7 1.75 1.75 1.75 1.75 1 2 1 1.5714285714285714 0.1607142857142857 0.1515228816828316
+\end{lstlisting}
+
+The C file \texttt{out\_c\_2} reports combination-private richness for each pair
+of populations:
+\begin{lstlisting}[style=out]
+A B 2 7 0.32142857142857145 0.026455026455026457 0.061475926130276456
+A B 3 7 0.24107142857142858 0.0630580357142857 0.09491201618513079
+
+A C 2 7 0.4761904761904762 0.13128306878306878 0.13694788830743965
+A C 3 7 0.39285714285714285 0.18452380952380953 0.16235930591649828
+
+B C 2 7 0.2976190476190476 0.08531746031746033 0.11040022018447268
+B C 3 7 0.24107142857142858 0.1255580357142857 0.13392857142857142
+\end{lstlisting}
+
+% ===========================================================================
+\section{Validation and Correctness}
+\label{sec:validation}
+
+\padze{} is a validated implementation of the rarefaction method.
+\begin{itemize}
+  \item \textbf{Automated test suite.} 82 automated tests pass (with 11
+        environment-gated tests skipped when optional external artifacts are
+        absent). Run them with \texttt{pytest} after
+        \texttt{pip install -e ".[test]"}.
+  \item \textbf{Numerical core validated against the original C++ ADZE.} The
+        rarefaction core, the classical mean / variance / standard-error
+        summaries, and the per-locus FULL outputs are checked against the
+        original C++ ADZE and agree to print precision.
+  \item \textbf{VCF path validated against STRUCTURE.} The VCF reader is
+        validated against matched STRUCTURE encodings of the same
+        genotypes---including allele-coding permutations, multiallelic sites, and
+        missing-data edge cases---so the VCF input path yields exactly the
+        STRUCTURE-derived counts and statistics. A STRUCTURE encoding of the trio
+        example reproduces byte-for-byte the classical values shown in
+        Section~\ref{sec:qs-classical}.
+\end{itemize}
+
+For the full verification procedure---commands, expected shapes, and the
+cross-tool comparison---see \texttt{docs/usage-and-verification.md}.
+
+% ===========================================================================
+\section{References}
+\label{sec:references}
+
+If you use \padze{}'s allelic-rarefaction statistics, cite the paper that
+introduced the method:
+
+\begin{quote}
+Szpiech ZA, Jakobsson M, Rosenberg NA. 2008. ADZE: a rarefaction approach for
+counting alleles private to combinations of populations. \textit{Bioinformatics}
+24:2498--2504.
+doi:\href{https://doi.org/10.1093/bioinformatics/btn478}{10.1093/bioinformatics/btn478}.
+\end{quote}
+
+Original ADZE 1.0 source, manual, and prebuilt binaries:
+\url{https://github.com/szpiech/ADZE}.
+
+\padze{} is an independent Python implementation, not endorsed by or affiliated
+with the original ADZE authors, and is distributed under the MIT license.
+
+\end{document}

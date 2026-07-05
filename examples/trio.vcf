@@ -1,0 +1,13 @@
+##fileformat=VCFv4.2
+##source=padze_publication_example
+##FILTER=<ID=PASS,Description="All filters passed">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##contig=<ID=chr1>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sA1	sA2	sB1	sB2	sC1	sC2
+chr1	100	.	A	G	60	PASS	.	GT	0/1	0/0	0/1	1/1	0/0	0/0
+chr1	200	.	C	T	60	PASS	.	GT	0/0	0/1	1/1	1/1	0/1	0/0
+chr1	300	.	G	A	60	PASS	.	GT	0/1	1/1	0/0	0/0	0/1	0/1
+chr1	400	.	T	C	60	PASS	.	GT	1/1	0/1	0/1	0/0	0/0	1/1
+chr1	500	.	A	C	60	PASS	.	GT	0/0	0/0	0/1	0/1	1/1	0/1
+chr1	600	.	G	T	60	PASS	.	GT	0/1	0/.	1/1	0/1	0/0	0/1
+chr1	700	.	C	A	60	PASS	.	GT	0/0	0/0	0/0	0/0	0/1	1/1
