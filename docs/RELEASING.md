@@ -42,7 +42,7 @@ release, and the version must be a new one that has never been published to PyPI
 | `pyproject.toml` | `version = "X.Y.Z"` |
 | `CITATION.cff` | `version: "X.Y.Z"` and `date-released: "YYYY-MM-DD"` |
 | `codemeta.json` | `"version": "X.Y.Z"` |
-| `CHANGELOG.md` | Add a new `## [X.Y.Z] - YYYY-MM-DD` section describing the changes |
+| `docs/CHANGELOG.md` | Add a new `## [X.Y.Z] - YYYY-MM-DD` section describing the changes |
 
 PADZE follows [Semantic Versioning](https://semver.org/): bump the patch for
 fixes, the minor for backward-compatible features, and the major for breaking
@@ -120,7 +120,7 @@ action:
 2. On GitHub, go to **Releases → Draft a new release**.
 3. Create a new tag `vX.Y.Z` (matching the version in `pyproject.toml`), targeting
    the default branch.
-4. Give it a title and paste the relevant `CHANGELOG.md` section as the notes.
+4. Give it a title and paste the relevant `docs/CHANGELOG.md` section as the notes.
 5. Click **Publish release**.
 
 Publishing the release triggers `.github/workflows/publish.yml`

@@ -6,7 +6,7 @@ Inspect a VCF + popmap (metadata only)::
 
     python -m padze info --vcf trio.vcf --popmap pops.txt
 
-Compute the ADZE feature table (row per rarefaction depth) to CSV::
+Compute the rarefaction feature table (row per rarefaction depth) to CSV::
 
     python -m padze features --vcf trio.vcf --popmap pops.txt \\
         --max-depth 20 --out features.csv
@@ -324,7 +324,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_input_args(pi)
     pi.set_defaults(func=cmd_info)
 
-    pf = sub.add_parser("features", help="compute the across-loci ADZE feature table")
+    pf = sub.add_parser("features", help="compute the across-loci rarefaction feature table")
     _add_input_args(pf)
     pf.add_argument("--max-depth", type=int, default=0,
                     help="largest rarefaction depth (default: max supported by data)")

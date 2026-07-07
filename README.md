@@ -116,12 +116,25 @@ pip install -e ".[test]"
 pytest
 ```
 
+## Repository layout
+
+- `README.md` and `PADZE_Manual.pdf` stay at the root for first-time readers.
+- `src/padze/` contains the importable package and CLI implementation.
+- `examples/` contains the small VCF/popmap walkthrough inputs.
+- `docs/` contains the manual source, verification notes, release notes, and release checklist.
+- `scripts/` contains reproducibility, benchmark, and data-acquisition helpers.
+- `tests/` contains unit, parity, and fixture-based regression tests.
+- `.github/` contains GitHub workflows plus contribution and security policy files.
+- `dist/` is the standard ignored location for locally built wheel and source distributions.
+
 ## Documentation
 
+- [`docs/README.md`](docs/README.md) — documentation index.
 - [`PADZE_Manual.pdf`](PADZE_Manual.pdf) — the PADZE manual (printable PDF, at the repository root).
 - [`docs/MANUAL.md`](docs/MANUAL.md) — the same manual in Markdown for reading on GitHub.
 - [`docs/adze-1.0-reference.md`](docs/adze-1.0-reference.md) — mapping to ADZE 1.0 concepts and formats.
 - [`docs/usage-and-verification.md`](docs/usage-and-verification.md) — verified usage and validation commands.
+- [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — release history.
 
 ## Citation
 

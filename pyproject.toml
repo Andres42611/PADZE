@@ -36,6 +36,11 @@ dependencies = [
   "numpy>=1.22"
 ]
 
+[project.urls]
+Homepage = "https://github.com/Andres42611/PADZE"
+Repository = "https://github.com/Andres42611/PADZE"
+Issues = "https://github.com/Andres42611/PADZE/issues"
+
 [project.optional-dependencies]
 test = [
   "pytest>=7",
